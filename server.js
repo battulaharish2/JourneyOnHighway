@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -9,12 +10,27 @@ const io = new Server(server, {
   cors: { origin: '*' }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+const publicDir = path.join(__dirname, 'public');
+app.use(express.static(publicDir));
+app.use(express.static(__dirname));
 
-// Shared multiplayer state (starts clean with zero pre-filled messages)
+// Explicit root route fallback
+app.get('/', (req, res) => {
+  const publicIndex = path.join(publicDir, 'index.html');
+  const rootIndex = path.join(__dirname, 'index.html');
+
+  if (fs.existsSync(publicIndex)) {
+    return res.sendFile(publicIndex);
+  }
+  if (fs.existsSync(rootIndex)) {
+    return res.sendFile(rootIndex);
+  }
+  res.status(404).send('index.html not found in /public or root directory.');
+});
+
 const state = {
-  bands: [],     // { id, color, emotion, timestamp }
-  memories: [],  // { id, text, color, emotion, laneOffset, zPos, timestamp }
+  bands: [],
+  memories: [],
   counts: {
     Joy: 0,
     Peace: 0,
@@ -30,16 +46,13 @@ const MAX_BANDS = 180;
 const MAX_MEMORIES = 120;
 
 io.on('connection', (socket) => {
-  // Send full current highway state to newly joined user
   socket.emit('init_state', {
     ...state,
     onlineCount: io.engine.clientsCount
   });
 
-  // Notify everyone of live participant count
   io.emit('online_count', io.engine.clientsCount);
 
-  // Handle emotion paint event
   socket.on('paint_emotion', (payload) => {
     if (!payload || !payload.emotion || !payload.color) return;
     const emotion = String(payload.emotion).slice(0, 24);
@@ -57,17 +70,11 @@ io.on('connection', (socket) => {
     };
 
     state.bands.push(band);
-    if (state.bands.length > MAX_BANDS) {
-      state.bands.shift();
-    }
+    if (state.bands.length > MAX_BANDS) state.bands.shift();
 
-    io.emit('emotion_painted', {
-      band,
-      counts: state.counts
-    });
+    io.emit('emotion_painted', { band, counts: state.counts });
   });
 
-  // Handle anonymous memory submission
   socket.on('add_memory', (payload) => {
     if (!payload || typeof payload.text !== 'string') return;
     const cleanText = payload.text.trim().slice(0, 280);
@@ -85,7 +92,7 @@ io.on('connection', (socket) => {
       text: cleanText,
       emotion,
       color,
-      laneOffset: (Math.random() * 1.4) - 0.7, // spread across lanes
+      laneOffset: (Math.random() * 1.4) - 0.7,
       zPos: 0.15 + Math.random() * 0.72,
       timestamp: Date.now()
     };
@@ -98,20 +105,12 @@ io.on('connection', (socket) => {
     };
 
     state.memories.push(memory);
-    if (state.memories.length > MAX_MEMORIES) {
-      state.memories.shift();
-    }
+    if (state.memories.length > MAX_MEMORIES) state.memories.shift();
 
     state.bands.push(band);
-    if (state.bands.length > MAX_BANDS) {
-      state.bands.shift();
-    }
+    if (state.bands.length > MAX_BANDS) state.bands.shift();
 
-    io.emit('memory_added', {
-      memory,
-      band,
-      counts: state.counts
-    });
+    io.emit('memory_added', { memory, band, counts: state.counts });
   });
 
   socket.on('disconnect', () => {
