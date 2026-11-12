@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journeys on the highway</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #04070d;
+      overflow: hidden;
+      user-select: none;
+    }
+    .font-memory {
+      font-family: 'Playfair Display', serif;
+    }
+    .glass {
+      background: rgba(10, 15, 26, 0.76);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+    }
+    .glass-input {
+      background: rgba(5, 8, 15, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    @keyframes scanLaser {
+      0% { top: 10%; opacity: 0.35; }
+      50% { top: 88%; opacity: 1; }
+      100% { top: 10%; opacity: 0.35; }
+    }
+    .scan-beam {
+      animation: scanLaser 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes orbPulse {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.12); opacity: 1; }
+    }
+    .orb-pulse {
+      animation: orbPulse 2.1s ease-in-out infinite;
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen relative overflow-hidden">
+
+  <!-- ================= 3D PERSPECTIVE HIGHWAY CANVAS ================= -->
+  <canvas id="highwayCanvas" class="fixed inset-0 w-full h-full block cursor-crosshair z-0"></canvas>
+
+  <!-- Subtle Twilight Atmospheric Vignette -->
+  <div class="fixed inset-0 pointer-events-none z-10 bg-gradient-to-t from-black/80 via-transparent to-black/55"></div>
+
+  <!-- ================= TOP HEADER BAR ================= -->
+  <header class="fixed top-0 left-0 right-0 z-30 px-4 md:px-7 py-3 flex items-center justify-between pointer-events-none">
+    <!-- Branding -->
+    <div class="flex items-center gap-2.5 pointer-events-auto">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-sky-500 p-[1.5px] shadow-lg">
+        <div class="w-full h-full bg-[#070b14] rounded-[10.5px] flex items-center justify-center">
+          <i class="ph-bold ph-road-horizon text-lg text-amber-400"></i>
+        </div>
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-bold tracking-tight text-white">
+          Journeys on the highway
+        </h1>
+      </div>
+    </div>
+
+    <!-- Action Controls -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <!-- QR Code Button -->
+      <button id="openQrModalBtn" class="glass px-3.5 py-2 rounded-2xl text-xs font-semibold text-sky-300 hover:text-white hover:border-sky-400/50 transition flex items-center gap-1.5 shadow-md active:scale-95">
+        <i class="ph-bold ph-qr-code text-base"></i>
+        <span>QR Code</span>
+      </button>
+
+      <!-- Camera & Color/QR Scanner -->
+      <button id="openScannerBtn" class="glass px-3.5 py-2 rounded-2xl text-xs font-semibold text-amber-300 hover:text-white hover:border-amber-400/50 transition flex items-center gap-1.5 shadow-md active:scale-95">
+        <i class="ph-bold ph-scan text-base animate-pulse"></i>
+        <span>Scanner</span>
+      </button>
+
+      <!-- Ambient Sound Toggle -->
+      <button id="audioToggleBtn" class="glass w-9 h-9 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white transition active:scale-95" title="Toggle Ambient Sound">
+        <i id="audioIcon" class="ph-bold ph-speaker-slash text-base"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= LIVE EMOTION SPECTRUM BAR ================= -->
+  <div class="fixed top-14 md:top-16 left-0 right-0 z-20 px-4 md:px-8 pointer-events-none">
+    <div class="max-w-2xl mx-auto glass rounded-2xl p-2.5 pointer-events-auto shadow-xl">
+      <div class="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-1.5 px-0.5">
+        <span class="flex items-center gap-1.5 text-slate-300 uppercase tracking-wider text-[10px]">
+          <i class="ph-bold ph-paint-brush text-rose-400"></i> Highway Spectrum
+        </span>
+        <span id="memoryCounterText" class="font-mono text-slate-300">0 Memories</span>
+      </div>
+      <!-- Cumulative Percentage Bar -->
+      <div id="spectrumSegments" class="h-2.5 w-full bg-slate-900/90 rounded-full overflow-hidden flex gap-0.5 shadow-inner">
+        <div class="w-full h-full bg-slate-800/70"></div>
+      </div>
+      <!-- Live Percentage Badges -->
+      <div id="spectrumPercentages" class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 px-0.5 text-[10px] text-slate-400">
+        <!-- Populated dynamically as emotions are contributed -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BOTTOM FLOATING CONTROLS: EMOTION & MEMORY COMPOSER ================= -->
+  <div class="fixed bottom-3 md:bottom-5 inset-x-0 z-30 px-3 md:px-6 pointer-events-none">
+    <div class="max-w-3xl mx-auto glass rounded-3xl p-3 md:p-4 pointer-events-auto shadow-2xl border border-white/10">
+      
+      <!-- Active Emotion Header -->
+      <div class="flex items-center justify-between mb-2 px-1">
+        <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">Select Emotion:</span>
+        <span id="activeEmotionPill" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          Joy
+        </span>
+      </div>
+
+      <!-- 7 Emotions Grid -->
+      <div id="emotionSelectorBar" class="grid grid-cols-7 gap-1.5 md:gap-2 mb-3">
+        <!-- Injected via JS -->
+      </div>
+
+      <!-- Anonymous Memory Input & Paint Buttons -->
+      <div class="flex flex-col sm:flex-row items-center gap-2">
+        <div class="relative w-full flex-1">
+          <input 
+            type="text" 
+            id="memoryInput" 
+            maxlength="140"
+            placeholder="Write an anonymous memory to plant on the highway..." 
+            class="w-full glass-input rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 transition font-normal"
+          >
+          <span id="charCount" class="absolute right-3.5 top-2.5 text-[10px] text-slate-500 font-mono">140</span>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <!-- Plant Anonymous Memory + Paint Road -->
+          <button 
+            id="submitMemoryBtn" 
+            class="flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-amber-500 via-rose-500 to-sky-500 hover:brightness-110 active:scale-95 text-white shadow-lg transition flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            <i class="ph-bold ph-sparkle text-base"></i>
+            <span>Plant Memory</span>
+          </button>
+
+          <!-- Paint Emotion Color Only -->
+          <button 
+            id="quickSprayBtn" 
+            title="Paint Highway with Selected Emotion" 
+            class="px-3.5 py-2.5 rounded-2xl font-semibold text-xs text-slate-200 hover:text-white glass hover:bg-slate-800/90 transition flex items-center justify-center gap-1.5 active:scale-95"
+          >
+            <i class="ph-bold ph-paint-roller text-base text-cyan-400"></i>
+            <span>Paint Road</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= POPUP: ANONYMOUS MEMORY LANTERN VIEWER ================= -->
+  <div id="memoryPopupModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+    <div id="memoryPopupCard" class="glass w-full max-w-md rounded-3xl p-6 relative shadow-2xl border border-white/20 transform scale-95 transition-all duration-300">
+      <button id="closeMemoryPopupBtn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+        <i class="ph-bold ph-x text-sm"></i>
+      </button>
+
+      <!-- Emotion Indicator Only -->
+      <div class="flex items-center gap-2.5 mb-3">
+        <div id="popupColorDot" class="w-3.5 h-3.5 rounded-full shadow-lg"></div>
+        <span id="popupEmotionLabel" class="text-xs uppercase font-bold tracking-wider"></span>
+      </div>
+
+      <!-- Pure Anonymous Memory Text -->
+      <div class="my-3 p-5 rounded-2xl bg-black/45 border border-white/10">
+        <p id="popupMemoryText" class="text-base sm:text-lg leading-relaxed text-slate-100 font-memory italic">
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ACCESSIBLE, EDITABLE & DOWNLOADABLE QR CODE ================= -->
+  <div id="qrModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass w-full max-w-md rounded-3xl p-6 text-center relative border border-white/15 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <button id="closeQrModalBtn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+        <i class="ph-bold ph-x text-sm"></i>
+      </button>
+
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30 mb-2">
+        <i class="ph-bold ph-qr-code"></i>
+        <span>Journeys on the highway</span>
+      </div>
+
+      <h3 class="text-base font-bold text-white mb-1">Scan to Join & Paint</h3>
+      <p class="text-xs text-slate-400 mb-3">Scan with any phone camera to open this highway and contribute emotions & memories.</p>
+
+      <!-- Crisp High-Contrast QR Canvas Container -->
+      <div class="p-4 bg-white rounded-2xl inline-flex items-center justify-center shadow-2xl mx-auto my-1 border-4 border-white">
+        <canvas id="qrCanvas" width="240" height="240" class="block"></canvas>
+      </div>
+
+      <!-- Local / Sandboxed URL Notice & Real-Time Editable Share Link -->
+      <div id="localUrlWarning" class="hidden mt-3 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-left text-[11px] text-amber-200 leading-relaxed">
+        <div class="flex items-start gap-2">
+          <i class="ph-bold ph-warning-circle text-base text-amber-400 shrink-0 mt-0.5"></i>
+          <span>This page is running in a local/preview sandbox. Paste your hosted public URL below (e.g. GitHub Pages, Netlify, Vercel, or LAN IP) to update the QR code immediately:</span>
+        </div>
+      </div>
+
+      <div class="mt-3 text-left">
+        <label for="qrTargetUrlInput" class="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 px-1">
+          QR Target Link (Updates Live)
+        </label>
+        <input 
+          type="text" 
+          id="qrTargetUrlInput" 
+          placeholder="https://your-hosted-url.com"
+          class="w-full glass-input rounded-xl px-3 py-2 text-xs text-sky-200 font-mono focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+        >
+      </div>
+
+      <!-- Action Buttons: Copy Link & Download PNG -->
+      <div class="mt-4 grid grid-cols-2 gap-2">
+        <button id="copyUrlBtn" class="py-2.5 px-3 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-300 border border-white/10 transition flex items-center justify-center gap-1.5 active:scale-95">
+          <i class="ph-bold ph-copy text-sm"></i>
+          <span id="copyUrlLabel">Copy Link</span>
+        </button>
+
+        <button id="downloadQrBtn" class="py-2.5 px-3 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-lg transition flex items-center justify-center gap-1.5 active:scale-95">
+          <i class="ph-bold ph-download-simple text-sm"></i>
+          <span>Download QR Code</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: CAMERA & COLOR / QR SCANNER ================= -->
+  <div id="scannerModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass w-full max-w-md rounded-3xl p-5 relative border border-cyan-500/30 shadow-2xl text-center">
+      <button id="closeScannerModalBtn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+        <i class="ph-bold ph-x text-sm"></i>
+      </button>
+
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 mb-2">
+        <i class="ph-bold ph-scan text-cyan-400 animate-pulse"></i>
+        <span>Emotion & QR Scanner</span>
+      </div>
+
+      <h3 class="text-base font-bold text-white mb-3">Scan Code or Project Emotion</h3>
+
+      <!-- Scanner Viewfinder -->
+      <div class="relative w-full h-64 bg-slate-950 rounded-2xl overflow-hidden border border-cyan-500/30 flex items-center justify-center">
+        <video id="cameraFeed" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted></video>
+        
+        <!-- HUD Corners -->
+        <div class="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-cyan-400 z-10 pointer-events-none"></div>
+        <div class="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-cyan-400 z-10 pointer-events-none"></div>
+        <div class="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-cyan-400 z-10 pointer-events-none"></div>
+        <div class="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-cyan-400 z-10 pointer-events-none"></div>
+
+        <!-- Animated Laser -->
+        <div class="scan-beam absolute inset-x-4 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_#22d3ee] z-10 pointer-events-none"></div>
+
+        <!-- Interactive Pulse Touch Orb -->
+        <div class="relative z-10 flex flex-col items-center">
+          <button id="sensorTouchOrb" class="orb-pulse w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-sky-500 flex items-center justify-center shadow-2xl active:scale-90 transition">
+            <i class="ph-bold ph-fingerprint text-4xl text-white"></i>
+          </button>
+          <span id="scannerStatusText" class="mt-3 px-2 py-0.5 rounded bg-black/60 text-[11px] font-mono tracking-wider text-cyan-300">
+            [ TAP ORB TO PROJECT EMOTION ]
+          </span>
+        </div>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button id="startCamBtn" class="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 transition flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-camera"></i>
+          <span id="camBtnLabel">Enable Camera</span>
+        </button>
+        <button id="burstBeamBtn" class="flex-1 py-2.5 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow transition flex items-center justify-center gap-1.5 active:scale-95">
+          <i class="ph-bold ph-waves"></i>
+          <span>Project Wave</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-20 right-4 z-50 transform -translate-y-4 opacity-0 pointer-events-none transition-all duration-300 glass border border-white/20 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs">
+    <span id="toastMsg" class="font-medium text-white"></span>
+  </div>
+
+  <!-- ================= APPLICATION JAVASCRIPT ================= -->
+  <script>
+    /* =========================================================================
+       1. PURE ZERO-DEPENDENCY ISO-18004 QR CODE GENERATOR (BYTE MODE + ECC)
+       ========================================================================= */
+    const PureQR = (function() {
+      // Galois Field GF(256) with primitive polynomial 0x11d (285)
+      const EXP = new Array(512);
+      const LOG = new Array(256);
+      let x = 1;
+      for (let i = 0; i < 255; i++) {
+        EXP[i] = x;
+        LOG[x] = i;
+        x <<= 1;
+        if (x & 0x100) x ^= 0x11d;
+      }
+      for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+
+      function gfMul(a, b) {
+        if (a === 0 || b === 0) return 0;
+        return EXP[LOG[a] + LOG[b]];
+      }
+
+      function getGeneratorPoly(ecLen) {
+        let poly = [1];
+        for (let i = 0; i < ecLen; i++) {
+          const next = new Array(poly.length + 1).fill(0);
+          const factor = EXP[i];
+          for (let j = 0; j < poly.length; j++) {
+            next[j] ^= poly[j];
+            next[j + 1] ^= gfMul(poly[j], factor);
+          }
+          poly = next;
+        }
+        return poly;
+      }
+
+      function computeReedSolomon(data, ecLen) {
+        const gen = getGeneratorPoly(ecLen);
+        const res = new Array(ecLen).fill(0);
+        for (let i = 0; i < data.length; i++) {
+          const coef = data[i] ^ res[0];
+          res.shift();
+          res.push(0);
+          if (coef !== 0) {
+            for (let j = 0; j < ecLen; j++) {
+              res[j] ^= gfMul(gen[j + 1], coef);
+            }
+          }
+        }
+        return res;
+      }
+
+      // Version capacities for Error Correction Level L (Byte Mode)
+      // [version, totalCodewords, ecCodewordsPerBlock, numBlocksGroup1, dataCodewordsGroup1, numBlocksGroup2, dataCodewordsGroup2]
+      const VERSIONS_L = [
+        null,
+        [1,  26,  7, 1, 19, 0, 0],
+        [2,  44, 10, 1, 34, 0, 0],
+        [3,  70, 15, 1, 55, 0, 0],
+        [4, 100, 20, 1, 80, 0, 0],
+        [5, 134, 26, 1, 108, 0, 0],
+        [6, 172, 18, 2, 68, 0, 0],
+        [7, 196, 20, 2, 78, 0, 0],
+        [8, 242, 24, 2, 97, 0, 0],
+        [9, 292, 30, 2, 116, 0, 0],
+        [10, 346, 18, 2, 68, 2, 69],
+        [11, 404, 20, 4, 81, 0, 0],
+        [12, 466, 24, 2, 92, 2, 93],
+        [13, 532, 26, 4, 107, 0, 0],
+        [14, 581, 30, 3, 115, 1, 116],
+        [15, 655, 22, 5, 87, 1, 88],
+        [16, 733, 24, 5, 98, 1, 99],
+        [17, 815, 28, 1, 107, 5, 108],
+        [18, 901, 30, 5, 120, 1, 121],
+        [19, 991, 28, 3, 113, 4, 114],
+        [20, 1085, 28, 3, 107, 5, 108]
+      ];
+
+      const ALIGNMENT_PATTERNS = [
+        [], [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34],
+        [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50],
+        [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66],
+        [6, 26, 48, 70], [6, 26, 50, 74], [6, 30, 54, 78],
+        [6, 30, 56, 82], [6, 30, 58, 86], [6, 34, 62, 90]
+      ];
+
+      // Precomputed 15-bit format info for ECC Level L (01) and masks 0..7
+      const FORMAT_INFO_L = [
+        0x77c4, 0x72f3, 0x7daa, 0x789d, 0x662f, 0x6318, 0x6c41, 0x6976
+      ];
+
+      // Precomputed 18-bit version info for versions 7..20
+      const VERSION_INFO = {
+        7: 0x07c94, 8: 0x085bc, 9: 0x09a99, 10: 0x0a4d3,
+        11: 0x0bbf6, 12: 0x0c762, 13: 0x0d847, 14: 0x0e60d,
+        15: 0x0f928, 16: 0x10b78, 17: 0x1145d, 18: 0x12a17,
+        19: 0x13532, 20: 0x149a6
+      };
+
+      function encodeUTF8(str) {
+        return Array.from(new TextEncoder().encode(str));
+      }
+
+      function createMatrix(text) {
+        const bytes = encodeUTF8(text);
+        let verSpec = null;
+        for (let v = 1; v < VERSIONS_L.length; v++) {
+          const spec = VERSIONS_L[v];
+          const totalDataCap = spec[3] * spec[4] + spec[5] * spec[6];
+          const headerBytes = v <= 9 ? 2 : 3;
+          if (bytes.length + headerBytes <= totalDataCap) {
+            verSpec = spec;
+            break;
+          }
+        }
+        if (!verSpec) {
+          // Fallback truncate if extremely long URL
+          return createMatrix(text.slice(0, 750));
+        }
+
+        const version = verSpec[0];
+        const ecPerBlock = verSpec[2];
+        const g1Blocks = verSpec[3], g1DataLen = verSpec[4];
+        const g2Blocks = verSpec[5], g2DataLen = verSpec[6];
+        const totalDataCodewords = g1Blocks * g1DataLen + g2Blocks * g2DataLen;
+
+        // Build bitstream
+        const bits = [];
+        function pushBits(val, len) {
+          for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1);
+        }
+
+        // Mode indicator: Byte = 0100
+        pushBits(0b0100, 4);
+        // Character count indicator
+        pushBits(bytes.length, version <= 9 ? 8 : 16);
+        // Payload bytes
+        for (let b of bytes) pushBits(b, 8);
+        // Terminator up to 4 zeros
+        const maxBits = totalDataCodewords * 8;
+        const termLen = Math.min(4, maxBits - bits.length);
+        pushBits(0, termLen);
+        // Pad to byte boundary
+        while (bits.length % 8 !== 0) bits.push(0);
+        // Pad codewords 0xEC, 0x11
+        const padBytes = [0xec, 0x11];
+        let padIdx = 0;
+        while (bits.length < maxBits) {
+          pushBits(padBytes[padIdx % 2], 8);
+          padIdx++;
+        }
+
+        // Convert bits to codewords
+        const dataCodewords = [];
+        for (let i = 0; i < bits.length; i += 8) {
+          let byte = 0;
+          for (let j = 0; j < 8; j++) byte = (byte << 1) | bits[i + j];
+          dataCodewords.push(byte);
+        }
+
+        // Split into blocks & compute RS ECC
+        const dataBlocks = [];
+        const ecBlocks = [];
+        let offset = 0;
+        for (let b = 0; b < g1Blocks; b++) {
+          const blk = dataCodewords.slice(offset, offset + g1DataLen);
+          offset += g1DataLen;
+          dataBlocks.push(blk);
+          ecBlocks.push(computeReedSolomon(blk, ecPerBlock));
+        }
+        for (let b = 0; b < g2Blocks; b++) {
+          const blk = dataCodewords.slice(offset, offset + g2DataLen);
+          offset += g2DataLen;
+          dataBlocks.push(blk);
+          ecBlocks.push(computeReedSolomon(blk, ecPerBlock));
+        }
+
+        // Interleave codewords
+        const finalCodewords = [];
+        const maxDataLen = Math.max(g1DataLen, g2DataLen);
+        for (let i = 0; i < maxDataLen; i++) {
+          for (let b = 0; b < dataBlocks.length; b++) {
+            if (i < dataBlocks[b].length) finalCodewords.push(dataBlocks[b][i]);
+          }
+        }
+        for (let i = 0; i < ecPerBlock; i++) {
+          for (let b = 0; b < ecBlocks.length; b++) {
+            finalCodewords.push(ecBlocks[b][i]);
+          }
+        }
+
+        // Initialize grid
+        const size = version * 4 + 17;
+        const modules = Array.from({ length: size }, () => new Array(size).fill(0));
+        const isFunction = Array.from({ length: size }, () => new Array(size).fill(false));
+
+        function setFunc(r, c, val) {
+          if (r >= 0 && r < size && c >= 0 && c < size) {
+            modules[r][c] = val ? 1 : 0;
+            isFunction[r][c] = true;
+          }
+        }
+
+        function drawFinder(row, col) {
+          for (let r = -1; r <= 7; r++) {
+            for (let c = -1; c <= 7; c++) {
+              const inOuter = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+              const inInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+              const onBorder = r === 0 || r === 6 || c === 0 || c === 6;
+              setFunc(row + r, col + c, inOuter && (onBorder || inInner));
+            }
+          }
+        }
+
+        drawFinder(0, 0);
+        drawFinder(0, size - 7);
+        drawFinder(size - 7, 0);
+
+        // Alignment patterns
+        const alignCoords = ALIGNMENT_PATTERNS[version];
+        for (let r of alignCoords) {
+          for (let c of alignCoords) {
+            if (isFunction[r][c]) continue;
+            for (let dr = -2; dr <= 2; dr++) {
+              for (let dc = -2; dc <= 2; dc++) {
+                const isDark = Math.max(Math.abs(dr), Math.abs(dc)) !== 1;
+                setFunc(r + dr, c + dc, isDark);
+              }
+            }
+          }
+        }
+
+        // Timing patterns
+        for (let i = 8; i < size - 8; i++) {
+          if (!isFunction[6][i]) setFunc(6, i, i % 2 === 0);
+          if (!isFunction[i][6]) setFunc(i, 6, i % 2 === 0);
+        }
+
+        // Dark module
+        setFunc(size - 8, 8, true);
+
+        // Reserve format info areas
+        for (let i = 0; i < 9; i++) {
+          if (i !== 6) {
+            setFunc(8, i, false);
+            setFunc(i, 8, false);
+          }
+        }
+        for (let i = 0; i < 8; i++) {
+          setFunc(8, size - 1 - i, false);
+          setFunc(size - 1 - i, 8, false);
+        }
+
+        // Version info for >= 7
+        if (version >= 7 && VERSION_INFO[version]) {
+          const vBits = VERSION_INFO[version];
+          for (let i = 0; i < 18; i++) {
+            const bit = ((vBits >>> i) & 1) === 1;
+            const a = Math.floor(i / 3);
+            const b = size - 11 + (i % 3);
+            setFunc(a, b, bit);
+            setFunc(b, a, bit);
+          }
+        }
+
+        // Place data bits (using Mask 0: (r + c) % 2 === 0)
+        const allBits = [];
+        for (let cw of finalCodewords) {
+          for (let b = 7; b >= 0; b--) allBits.push((cw >>> b) & 1);
+        }
+
+        let bitIdx = 0;
+        let upward = true;
+        for (let right = size - 1; right >= 1; right -= 2) {
+          if (right === 6) right = 5;
+          for (let vert = 0; vert < size; vert++) {
+            const r = upward ? size - 1 - vert : vert;
+            for (let j = 0; j < 2; j++) {
+              const c = right - j;
+              if (!isFunction[r][c]) {
+                let bit = bitIdx < allBits.length ? allBits[bitIdx++] : 0;
+                // Mask 0: (r + c) % 2 === 0
+                if ((r + c) % 2 === 0) bit ^= 1;
+                modules[r][c] = bit;
+              }
+            }
+          }
+          upward = !upward;
+        }
+
+        // Apply Format Info for Mask 0
+        const fmt = FORMAT_INFO_L[0];
+        for (let i = 0; i < 15; i++) {
+          const bit = ((fmt >>> i) & 1) === 1;
+          // Vertical
+          if (i < 6) setFunc(i, 8, bit);
+          else if (i < 8) setFunc(i + 1, 8, bit);
+          else setFunc(size - 15 + i, 8, bit);
+
+          // Horizontal
+          if (i < 8) setFunc(8, size - 1 - i, bit);
+          else if (i < 9) setFunc(8, 15 - i, bit);
+          else setFunc(8, 14 - i, bit);
+        }
+
+        return modules;
+      }
+
+      function renderToCanvas(canvasEl, text, pixelSize = 240) {
+        const matrix = createMatrix(text || 'https://example.com');
+        const count = matrix.length;
+        const quietZone = 4;
+        const totalModules = count + quietZone * 2;
+        const dpr = window.devicePixelRatio || 2;
+
+        canvasEl.width = pixelSize * dpr;
+        canvasEl.height = pixelSize * dpr;
+        canvasEl.style.width = pixelSize + 'px';
+        canvasEl.style.height = pixelSize + 'px';
+
+        const c = canvasEl.getContext('2d');
+        c.fillStyle = '#ffffff';
+        c.fillRect(0, 0, canvasEl.width, canvasEl.height);
+
+        const cell = canvasEl.width / totalModules;
+        c.fillStyle = '#05070c';
+
+        for (let r = 0; r < count; r++) {
+          for (let col = 0; col < count; col++) {
+            if (matrix[r][col]) {
+              const x = Math.floor((col + quietZone) * cell);
+              const y = Math.floor((r + quietZone) * cell);
+              const w = Math.ceil((col + quietZone + 1) * cell) - x;
+              const h = Math.ceil((r + quietZone + 1) * cell) - y;
+              c.fillRect(x, y, w, h);
+            }
+          }
+        }
+      }
+
+      return { renderToCanvas };
+    })();
+
+    /* =========================================================================
+       2. EMOTION DEFINITIONS & PURE ZERO-PREFILL STATE
+       ========================================================================= */
+    const EMOTIONS = [
+      { id: 'joy', name: 'Joy', colorHex: '#F59E0B', rgb: [245, 158, 11], icon: 'ph-sun', count: 0 },
+      { id: 'peace', name: 'Peace', colorHex: '#14B8A6', rgb: [20, 184, 166], icon: 'ph-wind', count: 0 },
+      { id: 'love', name: 'Love', colorHex: '#EC4899', rgb: [236, 72, 153], icon: 'ph-heart', count: 0 },
+      { id: 'grief', name: 'Grief', colorHex: '#64748B', rgb: [100, 116, 139], icon: 'ph-drop', count: 0 },
+      { id: 'passion', name: 'Passion', colorHex: '#EF4444', rgb: [239, 68, 68], icon: 'ph-flame', count: 0 },
+      { id: 'anxiety', name: 'Anxiety', colorHex: '#A855F7', rgb: [168, 85, 247], icon: 'ph-lightning', count: 0 },
+      { id: 'hope', name: 'Hope', colorHex: '#38BDF8', rgb: [56, 189, 248], icon: 'ph-sparkle', count: 0 }
+    ];
+
+    let currentEmotion = EMOTIONS[0];
+
+    // Zero pre-populated memories: starts completely empty until users contribute
+    let userMemories = [];
+
+    /* =========================================================================
+       3. REAL-TIME MULTI-USER SYNC (BroadcastChannel + LocalStorage + URL Hash)
+       ========================================================================= */
+    const STORAGE_KEY = 'journeys_highway_state_v1';
+    const channel = ('BroadcastChannel' in window) ? new BroadcastChannel('journeys_highway_sync') : null;
+
+    function saveAndBroadcastState() {
+      const payload = {
+        emotions: EMOTIONS.map(e => ({ id: e.id, count: e.count })),
+        bands: highwayBands,
+        memories: userMemories
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {}
+      if (channel) {
+        try {
+          channel.postMessage(payload);
+        } catch (e) {}
+      }
+      updateUrlHashState();
+    }
+
+    function applySyncedState(payload) {
+      if (!payload) return;
+      if (Array.isArray(payload.emotions)) {
+        payload.emotions.forEach(item => {
+          const em = EMOTIONS.find(e => e.id === item.id);
+          if (em && typeof item.count === 'number') {
+            em.count = Math.max(em.count, item.count);
+          }
+        });
+      }
+      if (Array.isArray(payload.bands) && payload.bands.length === SEGMENTS_COUNT) {
+        highwayBands = payload.bands;
+      }
+      if (Array.isArray(payload.memories)) {
+        const existingIds = new Set(userMemories.map(m => m.id));
+        payload.memories.forEach(m => {
+          if (!existingIds.has(m.id) && m.text && m.text.trim()) {
+            userMemories.unshift(m);
+          }
+        });
+      }
+      renderSpectrumBar();
+      memoryCounterText.textContent = `${userMemories.length} ${userMemories.length === 1 ? 'Memory' : 'Memories'}`;
+    }
+
+    function updateUrlHashState() {
+      try {
+        const compact = {
+          c: EMOTIONS.filter(e => e.count > 0).map(e => [e.id, e.count]),
+          m: userMemories.slice(0, 15).map(m => ({
+            i: m.id,
+            e: m.emotionId,
+            t: m.text,
+            z: Number(m.z.toFixed(2)),
+            l: Number(m.laneOffset.toFixed(2))
+          }))
+        };
+        if (compact.c.length > 0 || compact.m.length > 0) {
+          const encoded = btoa(encodeURIComponent(JSON.stringify(compact)));
+          history.replaceState(null, '', '#j=' + encoded);
+        }
+      } catch (e) {}
+    }
+
+    function loadInitialState() {
+      // 1. Check URL hash state (for QR code scans transferring state)
+      try {
+        if (window.location.hash && window.location.hash.startsWith('#j=')) {
+          const raw = decodeURIComponent(atob(window.location.hash.slice(3)));
+          const compact = JSON.parse(raw);
+          if (Array.isArray(compact.c)) {
+            compact.c.forEach(([id, cnt]) => {
+              const em = EMOTIONS.find(e => e.id === id);
+              if (em) {
+                em.count = cnt;
+                for (let k = 0; k < Math.min(cnt, 12); k++) {
+                  paintBandSilently(em);
+                }
+              }
+            });
+          }
+          if (Array.isArray(compact.m)) {
+            compact.m.forEach(item => {
+              if (item.t && item.t.trim()) {
+                userMemories.push({
+                  id: item.i || Date.now() + Math.random(),
+                  emotionId: item.e || 'joy',
+                  text: item.t,
+                  z: item.z || 0.3,
+                  laneOffset: item.l || 0
+                });
+              }
+            });
+          }
+        }
+      } catch (e) {}
+
+      // 2. Check localStorage state
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          applySyncedState(JSON.parse(saved));
+        }
+      } catch (e) {}
+    }
+
+    if (channel) {
+      channel.onmessage = (event) => {
+        applySyncedState(event.data);
+      };
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          applySyncedState(JSON.parse(e.newValue));
+        } catch (err) {}
+      }
+    });
+
+    /* =========================================================================
+       4. 3D PERSPECTIVE HIGHWAY & LUSH GREENERY CANVAS ENGINE
+       ========================================================================= */
+    const canvas = document.getElementById('highwayCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = 0;
+    let height = 0;
+    let dpr = window.devicePixelRatio || 1;
+    let roadScrollOffset = 0;
+    const ROAD_SPEED = 0.0014;
+
+    const SEGMENTS_COUNT = 64;
+    let highwayBands = [];
+
+    function initHighwayBands() {
+      highwayBands = [];
+      for (let i = 0; i < SEGMENTS_COUNT; i++) {
+        highwayBands.push({
+          rgb: [15, 20, 32],
+          alpha: 0
+        });
+      }
+    }
+    initHighwayBands();
+
+    // Multi-layered roadside trees, shrubs & lampposts
+    let foliageItems = [];
+    let lampposts = [];
+
+    function initScenery() {
+      foliageItems = [];
+      for (let i = 0; i < 68; i++) {
+        foliageItems.push({
+          z: Math.random(),
+          side: i % 2 === 0 ? 1 : -1,
+          lateralDistance: 1.14 + Math.random() * 2.1,
+          scale: 0.65 + Math.random() * 0.85,
+          kind: Math.random() > 0.35 ? 'pine' : (Math.random() > 0.4 ? 'oak' : 'shrub'),
+          hueShift: Math.random() * 24 - 12
+        });
+      }
+      foliageItems.sort((a, b) => b.z - a.z);
+
+      lampposts = [];
+      for (let i = 0; i < 10; i++) {
+        lampposts.push({
+          z: i / 10,
+          side: i % 2 === 0 ? -1 : 1
+        });
+      }
+    }
+    initScenery();
+
+    const splashes = [];
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function getPerspectivePoint(normX, z) {
+      const horizonY = height * 0.37;
+      const bottomY = height * 1.05;
+      const factor = Math.pow(1 - z, 2.2);
+
+      const y = horizonY + (bottomY - horizonY) * factor;
+      const horizonRoadWidth = width * 0.038;
+      const bottomRoadWidth = Math.min(width * 0.88, 980);
+      const roadW = horizonRoadWidth + (bottomRoadWidth - horizonRoadWidth) * factor;
+
+      const centerX = width * 0.5;
+      const x = centerX + (normX * roadW * 0.5);
+
+      return { x, y, roadW, factor };
+    }
+
+    function render() {
+      roadScrollOffset = (roadScrollOffset + ROAD_SPEED) % 1;
+
+      const horizonY = height * 0.37;
+
+      // 1. Twilight Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY + 20);
+      skyGrad.addColorStop(0, '#02040a');
+      skyGrad.addColorStop(0.55, '#070d1c');
+      skyGrad.addColorStop(1, '#101d33');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, width, horizonY + 20);
+
+      // Subtle horizon glow
+      const horizonGlow = ctx.createRadialGradient(width * 0.5, horizonY, 10, width * 0.5, horizonY, width * 0.48);
+      horizonGlow.addColorStop(0, 'rgba(56, 189, 248, 0.14)');
+      horizonGlow.addColorStop(0.5, 'rgba(16, 185, 129, 0.06)');
+      horizonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = horizonGlow;
+      ctx.fillRect(0, 0, width, horizonY + 30);
+
+      // 2. Rolling Green Hills on Horizon
+      drawRollingGreenHills(horizonY);
+
+      // 3. Rich Lush Greenery Meadows Flanking Left & Right
+      const grassGrad = ctx.createLinearGradient(0, horizonY, 0, height);
+      grassGrad.addColorStop(0, '#071c12');
+      grassGrad.addColorStop(0.45, '#0d3120');
+      grassGrad.addColorStop(1, '#082014');
+      ctx.fillStyle = grassGrad;
+      ctx.fillRect(0, horizonY, width, height - horizonY);
+
+      // 4. Roadside Greenery (Trees & Shrubs)
+      drawRoadsideGreenery();
+
+      // 5. Highway Asphalt & Cumulative Emotion Colors
+      drawHighwaySurface();
+
+      // 6. Highway Lane Markings & Curbs
+      drawHighwayMarkings();
+
+      // 7. Glowing Roadside Lampposts
+      drawLampposts();
+
+      // 8. Emotion Paint Ripples
+      drawSplashes();
+
+      // 9. User-Planted Anonymous Memory Lanterns
+      drawMemoryLanterns();
+
+      requestAnimationFrame(render);
+    }
+
+    function drawRollingGreenHills(horizonY) {
+      // Far ridge
+      ctx.fillStyle = '#071811';
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      for (let x = 0; x <= width + 40; x += 40) {
+        const ridge = Math.sin(x * 0.0032) * 28 + Math.cos(x * 0.0075) * 14;
+        ctx.lineTo(x, horizonY - 18 - Math.abs(ridge));
+      }
+      ctx.lineTo(width, horizonY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Nearer lush green ridge
+      ctx.fillStyle = '#0a2418';
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      for (let x = 0; x <= width + 40; x += 40) {
+        const ridge = Math.cos(x * 0.0045 + 1.2) * 18 + Math.sin(x * 0.01) * 9;
+        ctx.lineTo(x, horizonY - 8 - Math.abs(ridge));
+      }
+      ctx.lineTo(width, horizonY);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawRoadsideGreenery() {
+      // Sort dynamically by moving depth so nearer trees always overlap farther ones cleanly
+      const activeItems = foliageItems.map(item => ({
+        ...item,
+        effZ: (item.z - roadScrollOffset + 1) % 1
+      })).sort((a, b) => b.effZ - a.effZ);
+
+      for (let t of activeItems) {
+        const pt = getPerspectivePoint(t.side * t.lateralDistance, t.effZ);
+        const size = (1 - t.effZ) * 68 * t.scale;
+        if (size < 2) continue;
+
+        ctx.save();
+        ctx.translate(pt.x, pt.y);
+
+        // Ground shadow
+        ctx.fillStyle = 'rgba(2, 12, 7, 0.5)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.45, size * 0.13, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const hue = 144 + t.hueShift;
+
+        if (t.kind === 'shrub') {
+          const shrubGrad = ctx.createRadialGradient(0, -size * 0.25, 1, 0, -size * 0.25, size * 0.42);
+          shrubGrad.addColorStop(0, `hsla(${hue}, 72%, 28%, 0.96)`);
+          shrubGrad.addColorStop(1, `hsla(${hue}, 78%, 12%, 0.96)`);
+          ctx.fillStyle = shrubGrad;
+          ctx.beginPath();
+          ctx.arc(-size * 0.15, -size * 0.2, size * 0.26, 0, Math.PI * 2);
+          ctx.arc(size * 0.15, -size * 0.2, size * 0.24, 0, Math.PI * 2);
+          ctx.arc(0, -size * 0.3, size * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Trunk
+          ctx.fillStyle = '#19130d';
+          ctx.fillRect(-size * 0.055, -size * 0.48, size * 0.11, size * 0.48);
+
+          const canopyGrad = ctx.createRadialGradient(0, -size * 0.72, 2, 0, -size * 0.72, size * 0.55);
+          canopyGrad.addColorStop(0, `hsla(${hue}, 74%, 28%, 0.96)`);
+          canopyGrad.addColorStop(1, `hsla(${hue}, 80%, 11%, 0.96)`);
+          ctx.fillStyle = canopyGrad;
+
+          ctx.beginPath();
+          if (t.kind === 'pine') {
+            ctx.moveTo(0, -size * 1.35);
+            ctx.lineTo(size * 0.36, -size * 0.35);
+            ctx.lineTo(-size * 0.36, -size * 0.35);
+          } else {
+            ctx.arc(0, -size * 0.72, size * 0.42, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawLampposts() {
+      const activePosts = lampposts.map(p => ({
+        ...p,
+        effZ: (p.z - roadScrollOffset + 1) % 1
+      })).sort((a, b) => b.effZ - a.effZ);
+
+      for (let p of activePosts) {
+        const pt = getPerspectivePoint(p.side * 1.07, p.effZ);
+        const h = (1 - p.effZ) * 95;
+        if (h < 4) continue;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        ctx.lineWidth = Math.max(1, (1 - p.effZ) * 2.5);
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y);
+        ctx.lineTo(pt.x, pt.y - h);
+        ctx.lineTo(pt.x - p.side * h * 0.18, pt.y - h * 1.04);
+        ctx.stroke();
+
+        const bulbX = pt.x - p.side * h * 0.18;
+        const bulbY = pt.y - h * 1.04;
+        const glowR = Math.max(4, (1 - p.effZ) * 22);
+
+        const glow = ctx.createRadialGradient(bulbX, bulbY, 1, bulbX, bulbY, glowR);
+        glow.addColorStop(0, 'rgba(254, 243, 199, 0.85)');
+        glow.addColorStop(0.4, 'rgba(251, 191, 36, 0.25)');
+        glow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(bulbX, bulbY, glowR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawHighwaySurface() {
+      const step = 1 / SEGMENTS_COUNT;
+
+      for (let i = SEGMENTS_COUNT - 1; i >= 0; i--) {
+        const zFar = (i + 1) * step;
+        const zNear = i * step;
+
+        const leftFar = getPerspectivePoint(-1, zFar);
+        const rightFar = getPerspectivePoint(1, zFar);
+        const leftNear = getPerspectivePoint(-1, zNear);
+        const rightNear = getPerspectivePoint(1, zNear);
+
+        // Clean dark asphalt base
+        ctx.fillStyle = '#090c12';
+        ctx.beginPath();
+        ctx.moveTo(leftFar.x, leftFar.y);
+        ctx.lineTo(rightFar.x, rightFar.y);
+        ctx.lineTo(rightNear.x, rightNear.y);
+        ctx.lineTo(leftNear.x, leftNear.y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cumulative painted emotion layer
+        const band = highwayBands[i];
+        if (band && band.alpha > 0.02) {
+          const rgb = band.rgb;
+          const washGrad = ctx.createLinearGradient(leftNear.x, leftNear.y, rightNear.x, rightNear.y);
+          washGrad.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${band.alpha * 0.42})`);
+          washGrad.addColorStop(0.5, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${band.alpha})`);
+          washGrad.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${band.alpha * 0.42})`);
+
+          ctx.fillStyle = washGrad;
+          ctx.beginPath();
+          ctx.moveTo(leftFar.x, leftFar.y);
+          ctx.lineTo(rightFar.x, rightFar.y);
+          ctx.lineTo(rightNear.x, rightNear.y);
+          ctx.lineTo(leftNear.x, leftNear.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Crisp roadside edge shoulder lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.lineWidth = Math.max(1, (1 - zNear) * 2.5);
+        ctx.beginPath();
+        ctx.moveTo(leftNear.x, leftNear.y);
+        ctx.lineTo(leftFar.x, leftFar.y);
+        ctx.moveTo(rightNear.x, rightNear.y);
+        ctx.lineTo(rightFar.x, rightFar.y);
+        ctx.stroke();
+      }
+    }
+
+    function drawHighwayMarkings() {
+      const dividers = [-0.33, 0.33];
+      const count = 22;
+
+      for (let div of dividers) {
+        for (let j = 0; j < count; j++) {
+          const rawZ = (j / count + roadScrollOffset * 1.4) % 1;
+          const len = 0.024;
+          if (rawZ + len > 0.99) continue;
+
+          const p1 = getPerspectivePoint(div, rawZ);
+          const p2 = getPerspectivePoint(div, rawZ + len);
+          const alpha = Math.pow(1 - rawZ, 1.4);
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.72})`;
+          ctx.lineWidth = Math.max(1, (1 - rawZ) * 3.8);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawSplashes() {
+      for (let i = splashes.length - 1; i >= 0; i--) {
+        const s = splashes[i];
+        s.progress += 0.02;
+        s.radius += 2.3;
+        if (s.progress >= 1) {
+          splashes.splice(i, 1);
+          continue;
+        }
+
+        const pt = getPerspectivePoint(s.offset, s.z);
+        const alpha = (1 - s.progress) * 0.75;
+        ctx.strokeStyle = `rgba(${s.rgb[0]}, ${s.rgb[1]}, ${s.rgb[2]}, ${alpha})`;
+        ctx.lineWidth = (1 - s.z) * 4.5;
+        ctx.beginPath();
+        ctx.ellipse(pt.x, pt.y, s.radius * 2 * (1 - s.z), s.radius * 0.7 * (1 - s.z), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function drawMemoryLanterns() {
+      const now = performance.now() * 0.003;
+
+      userMemories.forEach((mem) => {
+        const pt = getPerspectivePoint(mem.laneOffset, mem.z);
+        const scale = Math.max(0.24, 1 - mem.z);
+        const emotion = EMOTIONS.find(e => e.id === mem.emotionId) || EMOTIONS[0];
+        const rgb = emotion.rgb;
+
+        const bob = Math.sin(now + mem.id) * 5 * scale;
+        const lanternY = pt.y - 30 * scale + bob;
+
+        mem.screenX = pt.x;
+        mem.screenY = lanternY;
+        mem.radius = 25 * scale;
+
+        ctx.save();
+        // Radiant Lantern Halo
+        const halo = ctx.createRadialGradient(pt.x, lanternY, 2, pt.x, lanternY, 30 * scale);
+        halo.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.95)`);
+        halo.addColorStop(0.5, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`);
+        halo.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0)`);
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(pt.x, lanternY, 30 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tether Stem to Asphalt
+        ctx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.45)`;
+        ctx.lineWidth = Math.max(0.8, 1.5 * scale);
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y);
+        ctx.lineTo(pt.x, lanternY + 7 * scale);
+        ctx.stroke();
+
+        // Glowing Core Orb
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        ctx.shadowBlur = 14 * scale;
+        ctx.beginPath();
+        ctx.arc(pt.x, lanternY, 7.5 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Emotion Pill Badge
+        if (scale > 0.42) {
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(7, 11, 20, 0.88)';
+          ctx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.7)`;
+          ctx.lineWidth = 1;
+          const tagW = 62 * scale;
+          const tagH = 18 * scale;
+          ctx.beginPath();
+          ctx.roundRect(pt.x - tagW / 2, lanternY - 22 * scale, tagW, tagH, 6 * scale);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `600 ${Math.round(8.5 * scale)}px 'Plus Jakarta Sans', sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText(emotion.name, pt.x, lanternY - 9.5 * scale);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    /* =========================================================================
+       5. CUMULATIVE EMOTION PAINTING LOGIC
+       ========================================================================= */
+    function blendRgb(c1, c2, r) {
+      return [
+        Math.round(c1[0] * (1 - r) + c2[0] * r),
+        Math.round(c1[1] * (1 - r) + c2[1] * r),
+        Math.round(c1[2] * (1 - r) + c2[2] * r)
+      ];
+    }
+
+    function paintBandSilently(emotion) {
+      const idx = Math.floor(Math.random() * SEGMENTS_COUNT);
+      const current = highwayBands[idx];
+      highwayBands[idx] = {
+        rgb: current.alpha > 0.05 ? blendRgb(current.rgb, emotion.rgb, 0.65) : [...emotion.rgb],
+        alpha: Math.min(0.88, Math.max(0.65, current.alpha + 0.25))
+      };
+
+      const prev = (idx - 1 + SEGMENTS_COUNT) % SEGMENTS_COUNT;
+      const next = (idx + 1) % SEGMENTS_COUNT;
+      highwayBands[prev].rgb = blendRgb(highwayBands[prev].rgb, emotion.rgb, 0.45);
+      highwayBands[prev].alpha = Math.min(0.85, highwayBands[prev].alpha + 0.28);
+      highwayBands[next].rgb = blendRgb(highwayBands[next].rgb, emotion.rgb, 0.45);
+      highwayBands[next].alpha = Math.min(0.85, highwayBands[next].alpha + 0.28);
+    }
+
+    function pourColor(emotion, customZ = null, customOffset = null) {
+      paintBandSilently(emotion);
+
+      splashes.push({
+        z: customZ !== null ? customZ : (0.14 + Math.random() * 0.66),
+        offset: customOffset !== null ? customOffset : ((Math.random() - 0.5) * 1.4),
+        rgb: emotion.rgb,
+        progress: 0,
+        radius: 4
+      });
+
+      emotion.count += 1;
+      renderSpectrumBar();
+      playChime(emotion);
+      saveAndBroadcastState();
+    }
+
+    /* =========================================================================
+       6. PROCEDURAL AMBIENT AUDIO (WEB AUDIO API)
+       ========================================================================= */
+    let audioCtx = null;
+    let isAudioOn = false;
+    let masterGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+      masterGain.connect(audioCtx.destination);
+
+      [130.81, 164.81, 196.00].forEach(f => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start();
+      });
+    }
+
+    function playChime(em) {
+      if (!audioCtx || audioCtx.state === 'suspended' || !isAudioOn) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        const freqs = { joy: 523.25, peace: 440, love: 493.88, grief: 329.63, passion: 659.25, anxiety: 392, hope: 587.33 };
+        osc.frequency.setValueAtTime(freqs[em.id] || 440, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.22, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.1);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.1);
+      } catch (e) {}
+    }
+
+    const audioToggleBtn = document.getElementById('audioToggleBtn');
+    const audioIcon = document.getElementById('audioIcon');
+    audioToggleBtn.addEventListener('click', () => {
+      if (!audioCtx) initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      isAudioOn = !isAudioOn;
+      if (isAudioOn) {
+        masterGain.gain.setTargetAtTime(0.055, audioCtx.currentTime, 0.25);
+        audioIcon.className = 'ph-bold ph-speaker-high text-emerald-400';
+      } else {
+        masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.25);
+        audioIcon.className = 'ph-bold ph-speaker-slash text-slate-300';
+      }
+    });
+
+    /* =========================================================================
+       7. EMOTION SELECTOR & SPECTRUM BAR UI
+       ========================================================================= */
+    const emotionSelectorBar = document.getElementById('emotionSelectorBar');
+    const activeEmotionPill = document.getElementById('activeEmotionPill');
+    const spectrumSegments = document.getElementById('spectrumSegments');
+    const spectrumPercentages = document.getElementById('spectrumPercentages');
+    const memoryCounterText = document.getElementById('memoryCounterText');
+
+    function renderEmotionButtons() {
+      emotionSelectorBar.innerHTML = '';
+      EMOTIONS.forEach((em) => {
+        const isSelected = em.id === currentEmotion.id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `py-2 px-1 rounded-2xl flex flex-col items-center justify-center transition-all ${
+          isSelected
+            ? 'bg-white/15 ring-2 ring-white/50 scale-105'
+            : 'bg-black/35 hover:bg-white/5 opacity-75 hover:opacity-100'
+        }`;
+        btn.innerHTML = `
+          <span class="w-5 h-5 rounded-full mb-1 shadow-md flex items-center justify-center" style="background-color: ${em.colorHex}">
+            <i class="ph-bold ${em.icon} text-slate-950 text-[11px]"></i>
+          </span>
+          <span class="text-[10px] font-bold tracking-tight text-white">${em.name}</span>
+        `;
+        btn.addEventListener('click', () => {
+          currentEmotion = em;
+          renderEmotionButtons();
+          activeEmotionPill.textContent = em.name;
+          activeEmotionPill.style.color = em.colorHex;
+          activeEmotionPill.style.borderColor = `${em.colorHex}66`;
+          activeEmotionPill.style.backgroundColor = `${em.colorHex}22`;
+          playChime(em);
+        });
+        emotionSelectorBar.appendChild(btn);
+      });
+    }
+
+    function renderSpectrumBar() {
+      const total = EMOTIONS.reduce((sum, e) => sum + e.count, 0);
+      spectrumSegments.innerHTML = '';
+      spectrumPercentages.innerHTML = '';
+
+      if (total === 0) {
+        spectrumSegments.innerHTML = '<div class="w-full h-full bg-slate-800/70"></div>';
+        return;
+      }
+
+      EMOTIONS.forEach((em) => {
+        if (em.count === 0) return;
+        const pct = (em.count / total) * 100;
+        const seg = document.createElement('div');
+        seg.style.width = `${pct}%`;
+        seg.style.backgroundColor = em.colorHex;
+        seg.className = 'h-full transition-all duration-300';
+        spectrumSegments.appendChild(seg);
+
+        const badge = document.createElement('span');
+        badge.className = 'inline-flex items-center gap-1 font-medium';
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full" style="background:${em.colorHex}"></span>${em.name} ${Math.round(pct)}%`;
+        spectrumPercentages.appendChild(badge);
+      });
+    }
+
+    /* =========================================================================
+       8. ANONYMOUS MEMORY PLANTING & LANTERN POPUP
+       ========================================================================= */
+    const memoryInput = document.getElementById('memoryInput');
+    const charCount = document.getElementById('charCount');
+    const submitMemoryBtn = document.getElementById('submitMemoryBtn');
+    const quickSprayBtn = document.getElementById('quickSprayBtn');
+
+    memoryInput.addEventListener('input', (e) => {
+      charCount.textContent = 140 - e.target.value.length;
+    });
+
+    function plantMemory() {
+      const text = memoryInput.value.trim();
+
+      if (text.length > 0) {
+        const mem = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          emotionId: currentEmotion.id,
+          text: text,
+          z: 0.16 + Math.random() * 0.42,
+          laneOffset: (Math.random() - 0.5) * 1.35
+        };
+
+        userMemories.unshift(mem);
+        memoryInput.value = '';
+        charCount.textContent = '140';
+        memoryCounterText.textContent = `${userMemories.length} ${userMemories.length === 1 ? 'Memory' : 'Memories'}`;
+        pourColor(currentEmotion, mem.z, mem.laneOffset);
+        showToast('Memory planted on the highway.');
+      } else {
+        pourColor(currentEmotion);
+        showToast(`Painted highway with ${currentEmotion.name}.`);
+      }
+    }
+
+    submitMemoryBtn.addEventListener('click', plantMemory);
+    memoryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') plantMemory();
+    });
+
+    quickSprayBtn.addEventListener('click', () => {
+      pourColor(currentEmotion);
+      showToast(`Painted highway with ${currentEmotion.name}.`);
+    });
+
+    // Memory Lantern Popup (Shows ONLY the memory text and its emotion color)
+    const memoryPopupModal = document.getElementById('memoryPopupModal');
+    const memoryPopupCard = document.getElementById('memoryPopupCard');
+    const closeMemoryPopupBtn = document.getElementById('closeMemoryPopupBtn');
+    const popupColorDot = document.getElementById('popupColorDot');
+    const popupEmotionLabel = document.getElementById('popupEmotionLabel');
+    const popupMemoryText = document.getElementById('popupMemoryText');
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      let hit = null;
+      for (let mem of userMemories) {
+        if (typeof mem.screenX !== 'number') continue;
+        const dist = Math.hypot(clickX - mem.screenX, clickY - mem.screenY);
+        if (dist <= Math.max(28, mem.radius * 1.45)) {
+          hit = mem;
+          break;
+        }
+      }
+
+      if (hit) {
+        openMemoryCard(hit);
+      } else if (clickY > height * 0.37) {
+        const normX = (clickX - width * 0.5) / (width * 0.4);
+        const horizonY = height * 0.37;
+        const factor = (clickY - horizonY) / (height * 1.05 - horizonY);
+        const zDepth = Math.max(0.05, Math.min(0.95, 1 - Math.pow(factor, 1 / 2.2)));
+        pourColor(currentEmotion, zDepth, normX);
+      }
+    });
+
+    function openMemoryCard(mem) {
+      const em = EMOTIONS.find(e => e.id === mem.emotionId) || EMOTIONS[0];
+      popupColorDot.style.backgroundColor = em.colorHex;
+      popupColorDot.style.boxShadow = `0 0 12px ${em.colorHex}`;
+      popupEmotionLabel.textContent = em.name;
+      popupEmotionLabel.style.color = em.colorHex;
+      popupMemoryText.textContent = mem.text;
+
+      memoryPopupModal.classList.remove('opacity-0', 'pointer-events-none');
+      memoryPopupCard.classList.remove('scale-95');
+      memoryPopupCard.classList.add('scale-100');
+    }
+
+    function closeMemoryCard() {
+      memoryPopupModal.classList.add('opacity-0', 'pointer-events-none');
+      memoryPopupCard.classList.remove('scale-100');
+      memoryPopupCard.classList.add('scale-95');
+    }
+
+    closeMemoryPopupBtn.addEventListener('click', closeMemoryCard);
+    memoryPopupModal.addEventListener('click', (e) => {
+      if (e.target === memoryPopupModal) closeMemoryCard();
+    });
+
+    /* =========================================================================
+       9. ACCESSIBLE, SCANNABLE, EDITABLE & DOWNLOADABLE QR CODE MODAL
+       ========================================================================= */
+    const openQrModalBtn = document.getElementById('openQrModalBtn');
+    const qrModal = document.getElementById('qrModal');
+    const closeQrModalBtn = document.getElementById('closeQrModalBtn');
+    const qrCanvas = document.getElementById('qrCanvas');
+    const qrTargetUrlInput = document.getElementById('qrTargetUrlInput');
+    const localUrlWarning = document.getElementById('localUrlWarning');
+    const copyUrlBtn = document.getElementById('copyUrlBtn');
+    const copyUrlLabel = document.getElementById('copyUrlLabel');
+    const downloadQrBtn = document.getElementById('downloadQrBtn');
+
+    function isNonPublicUrl(urlStr) {
+      return (
+        !urlStr ||
+        urlStr.startsWith('file:') ||
+        urlStr.startsWith('blob:') ||
+        urlStr.startsWith('about:') ||
+        urlStr.startsWith('data:') ||
+        urlStr.includes('localhost') ||
+        urlStr.includes('127.0.0.1')
+      );
+    }
+
+    function refreshQrCode(urlValue) {
+      const target = (urlValue || '').trim() || window.location.href;
+      PureQR.renderToCanvas(qrCanvas, target, 240);
+    }
+
+    openQrModalBtn.addEventListener('click', () => {
+      const currentHref = window.location.href;
+      if (!qrTargetUrlInput.value) {
+        qrTargetUrlInput.value = currentHref;
+      }
+
+      if (isNonPublicUrl(qrTargetUrlInput.value)) {
+        localUrlWarning.classList.remove('hidden');
+      } else {
+        localUrlWarning.classList.add('hidden');
+      }
+
+      refreshQrCode(qrTargetUrlInput.value);
+      qrModal.classList.remove('opacity-0', 'pointer-events-none');
+    });
+
+    qrTargetUrlInput.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (isNonPublicUrl(val)) {
+        localUrlWarning.classList.remove('hidden');
+      } else {
+        localUrlWarning.classList.add('hidden');
+      }
+      refreshQrCode(val);
+    });
+
+    closeQrModalBtn.addEventListener('click', () => {
+      qrModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+    qrModal.addEventListener('click', (e) => {
+      if (e.target === qrModal) qrModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+
+    copyUrlBtn.addEventListener('click', () => {
+      const urlToCopy = qrTargetUrlInput.value.trim() || window.location.href;
+      const tempInput = document.createElement('input');
+      tempInput.value = urlToCopy;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        copyUrlLabel.textContent = 'Copied!';
+        showToast('Shareable link copied to clipboard.');
+        setTimeout(() => copyUrlLabel.textContent = 'Copy Link', 2000);
+      } catch (err) {}
+      document.body.removeChild(tempInput);
+    });
+
+    downloadQrBtn.addEventListener('click', () => {
+      try {
+        // Export crisp high-res PNG with white framing
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = 600;
+        exportCanvas.height = 680;
+        const ex = exportCanvas.getContext('2d');
+
+        ex.fillStyle = '#ffffff';
+        ex.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+        // Draw high-resolution QR matrix onto export canvas
+        const tempQr = document.createElement('canvas');
+        PureQR.renderToCanvas(tempQr, qrTargetUrlInput.value.trim() || window.location.href, 500);
+        ex.drawImage(tempQr, 50, 40, 500, 500);
+
+        ex.fillStyle = '#05070c';
+        ex.font = "bold 24px 'Plus Jakarta Sans', sans-serif";
+        ex.textAlign = 'center';
+        ex.fillText('Journeys on the highway', 300, 595);
+
+        ex.fillStyle = '#475569';
+        ex.font = "16px 'Plus Jakarta Sans', sans-serif";
+        ex.fillText('Scan to paint emotions & plant memories', 300, 628);
+
+        const link = document.createElement('a');
+        link.download = 'journeys-on-the-highway-qr.png';
+        link.href = exportCanvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('QR Code PNG downloaded.');
+      } catch (err) {
+        showToast('Unable to download QR image.');
+      }
+    });
+
+    /* =========================================================================
+       10. INTEGRATED CAMERA, BARCODE DETECTOR & EMOTION SCANNER
+       ========================================================================= */
+    const openScannerBtn = document.getElementById('openScannerBtn');
+    const scannerModal = document.getElementById('scannerModal');
+    const closeScannerModalBtn = document.getElementById('closeScannerModalBtn');
+    const sensorTouchOrb = document.getElementById('sensorTouchOrb');
+    const scannerStatusText = document.getElementById('scannerStatusText');
+    const startCamBtn = document.getElementById('startCamBtn');
+    const cameraFeed = document.getElementById('cameraFeed');
+    const camBtnLabel = document.getElementById('camBtnLabel');
+    const burstBeamBtn = document.getElementById('burstBeamBtn');
+
+    let mediaStream = null;
+    let barcodeInterval = null;
+
+    function stopCameraStream() {
+      if (barcodeInterval) {
+        clearInterval(barcodeInterval);
+        barcodeInterval = null;
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      cameraFeed.classList.add('hidden');
+      camBtnLabel.textContent = 'Enable Camera';
+    }
+
+    openScannerBtn.addEventListener('click', () => {
+      scannerModal.classList.remove('opacity-0', 'pointer-events-none');
+    });
+
+    closeScannerModalBtn.addEventListener('click', () => {
+      scannerModal.classList.add('opacity-0', 'pointer-events-none');
+      stopCameraStream();
+    });
+
+    sensorTouchOrb.addEventListener('click', () => {
+      scannerStatusText.textContent = `[ PROJECTED: ${currentEmotion.name.toUpperCase()} ]`;
+      scannerStatusText.style.color = currentEmotion.colorHex;
+
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+          pourColor(currentEmotion, 0.14 + i * 0.24, (Math.random() - 0.5) * 1.3);
+        }, i * 140);
+      }
+      showToast(`Projected ${currentEmotion.name} onto the highway.`);
+    });
+
+    burstBeamBtn.addEventListener('click', () => {
+      for (let k = 0; k < 5; k++) {
+        setTimeout(() => {
+          pourColor(currentEmotion, 0.1 + k * 0.16, (Math.random() - 0.5) * 1.4);
+        }, k * 110);
+      }
+      showToast(`Projected ${currentEmotion.name} wave.`);
+    });
+
+    startCamBtn.addEventListener('click', async () => {
+      if (mediaStream) {
+        stopCameraStream();
+        scannerStatusText.textContent = '[ TAP ORB TO PROJECT EMOTION ]';
+        return;
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('Camera unavailable; use Touch Orb to project emotion.');
+        return;
+      }
+
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        cameraFeed.srcObject = mediaStream;
+        await cameraFeed.play();
+        cameraFeed.classList.remove('hidden');
+        camBtnLabel.textContent = 'Stop Camera';
+        scannerStatusText.textContent = '[ SCANNING QR OR TAP ORB TO PAINT ]';
+
+        // Native BarcodeDetector QR scanning if supported by browser
+        if ('BarcodeDetector' in window) {
+          const detector = new BarcodeDetector({ formats: ['qr_code'] });
+          barcodeInterval = setInterval(async () => {
+            if (!mediaStream || cameraFeed.readyState < 2) return;
+            try {
+              const codes = await detector.detect(cameraFeed);
+              if (codes && codes.length > 0) {
+                const rawVal = codes[0].rawValue;
+                if (rawVal && (rawVal.startsWith('http://') || rawVal.startsWith('https://'))) {
+                  stopCameraStream();
+                  scannerModal.classList.add('opacity-0', 'pointer-events-none');
+                  window.location.href = rawVal;
+                }
+              }
+            } catch (err) {}
+          }, 500);
+        }
+      } catch (err) {
+        showToast('Camera permission denied; touch orb still active.');
+      }
+    });
+
+    /* =========================================================================
+       11. TOAST NOTIFICATION
+       ========================================================================= */
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+    let toastTimeout = null;
+
+    function showToast(msg) {
+      toastMsg.textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+      }, 2400);
+    }
+
+    /* =========================================================================
+       12. INITIALIZATION
+       ========================================================================= */
+    window.onload = function() {
+      loadInitialState();
+      renderEmotionButtons();
+      renderSpectrumBar();
+      memoryCounterText.textContent = `${userMemories.length} ${userMemories.length === 1 ? 'Memory' : 'Memories'}`;
+      requestAnimationFrame(render);
+    };
+  </script>
+</body>
+</html>
