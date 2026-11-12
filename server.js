@@ -197,7 +197,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   <div class="emos" id="emosRow"></div>
   <div class="inputs">
     <button class="btn" id="paintBtn" style="border-color:#facc15;">Paint Road</button>
-    <input type="text" id="memInput" maxlength="240" placeholder="Write an anonymous memory and tap Add..." />
+    <input type="text" id="memInput" maxlength="240" placeholder="I remember..." />
     <button class="btn btn-primary" id="addBtn">Add</button>
   </div>
 </div>
