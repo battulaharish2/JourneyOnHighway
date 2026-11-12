@@ -184,6 +184,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     <span class="live" id="onlineCount">1 / 100</span>
   </div>
   <div class="card">
+    <button class="btn" id="soundToggleBtn" title="Toggle Pop & Bell Sound">🔔 Sound On</button>
     <button class="btn" id="openRoomBtn">Join Room</button>
     <button class="btn" id="openScanBtn">Scan QR</button>
     <button class="btn btn-primary" id="openQrBtn">Share QR</button>
@@ -273,6 +274,71 @@ let curEmo = EMOTIONS[0];
 let activeRoom = (new URLSearchParams(location.search).get('room') || 'MAIN').toUpperCase();
 let bands = [], memories = [], counts = {}, pins = [], scroll = 0;
 
+// ==================== POP + BELL CHIME SOUND SYNTHESIZER ====================
+let audioCtx = null;
+let soundEnabled = true;
+
+function initAudio() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) audioCtx = new AudioContext();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+window.addEventListener('pointerdown', initAudio, { once: true });
+window.addEventListener('keydown', initAudio, { once: true });
+
+document.getElementById('soundToggleBtn').onclick = () => {
+  initAudio();
+  soundEnabled = !soundEnabled;
+  document.getElementById('soundToggleBtn').textContent = soundEnabled ? '🔔 Sound On' : '🔕 Muted';
+  if (soundEnabled) playOrbSound();
+};
+
+function playOrbSound() {
+  if (!soundEnabled) return;
+  try {
+    initAudio();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+
+    // 1. Crisp "Pop" bubble transient
+    const popOsc = audioCtx.createOscillator();
+    const popGain = audioCtx.createGain();
+    popOsc.type = 'sine';
+    popOsc.frequency.setValueAtTime(520, now);
+    popOsc.frequency.exponentialRampToValueAtTime(140, now + 0.065);
+    popGain.gain.setValueAtTime(0.28, now);
+    popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+    popOsc.connect(popGain);
+    popGain.connect(audioCtx.destination);
+    popOsc.start(now);
+    popOsc.stop(now + 0.07);
+
+    // 2. Crystalline Bell Chime (A5 + E6 + A6)
+    const bellNotes = [880, 1318.5, 1760];
+    bellNotes.forEach((freq, idx) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = idx === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq, now + 0.03);
+
+      const peak = idx === 0 ? 0.22 : 0.08;
+      gain.gain.setValueAtTime(0.0001, now + 0.03);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + 0.03);
+      osc.stop(now + 1.2);
+    });
+  } catch (_) {}
+}
+
 function closeM(id) { document.getElementById(id).classList.remove('open'); }
 
 const emosRow = document.getElementById('emosRow');
@@ -324,7 +390,7 @@ socket.on('emotion_painted', (d) => {
 });
 
 socket.on('memory_added', (d) => {
-  // Show message popup above the glowing orb head for 3 seconds (3000ms)
+  playOrbSound();
   const memWithPopup = { ...d.memory, popUntil: Date.now() + 3000 };
   memories.push(memWithPopup);
   if (memories.length > 120) memories.shift();
@@ -345,10 +411,12 @@ socket.on('reset_error', (m) => {
 });
 
 paintBtn.onclick = () => {
+  initAudio();
   socket.emit('paint_emotion', { emotion: curEmo.name, color: curEmo.color });
 };
 
 function sendMem() {
+  initAudio();
   const inp = document.getElementById('memInput');
   const txt = inp.value.trim();
   if (!txt) return;
@@ -466,10 +534,8 @@ function drawTree(x, y, s, sh) {
   }
 }
 
-// Helper to draw 3-second floating speech bubble above the orb head
 function drawOrbPopup(x, y, r, m, remainingMs) {
   ctx.save();
-  // Smooth fade out during the last 500ms
   const alpha = remainingMs < 500 ? Math.max(0, remainingMs / 500) : 1;
   ctx.globalAlpha = alpha;
 
@@ -504,11 +570,9 @@ function drawOrbPopup(x, y, r, m, remainingMs) {
   const boxW = Math.min(240, textW + padX * 2);
   const boxH = lines.length * lineH + padY * 2;
 
-  // Keep popup clamped inside screen edges horizontally
   const bx = Math.max(10, Math.min(innerWidth - boxW - 10, x - boxW / 2));
   const by = y - r * 1.4 - boxH - 10;
 
-  // Speech bubble background + pointer triangle pointing down to orb head
   ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
   ctx.strokeStyle = m.color || '#38bdf8';
   ctx.lineWidth = 2;
@@ -522,7 +586,6 @@ function drawOrbPopup(x, y, r, m, remainingMs) {
   ctx.fill();
   ctx.stroke();
 
-  // Pointer tip right above orb
   const tipX = Math.max(bx + 12, Math.min(bx + boxW - 12, x));
   ctx.beginPath();
   ctx.moveTo(tipX - 6, by + boxH);
@@ -532,7 +595,6 @@ function drawOrbPopup(x, y, r, m, remainingMs) {
   ctx.fillStyle = m.color || '#38bdf8';
   ctx.fill();
 
-  // Render message text inside bubble
   ctx.fillStyle = '#f8fafc';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -614,7 +676,6 @@ function loop() {
     }
   });
 
-  // Draw 3-second floating bubbles on top of all orbs so text is never obscured
   activePopups.forEach(pop => {
     drawOrbPopup(pop.x, pop.y, pop.r, pop.m, pop.remaining);
   });
@@ -624,6 +685,7 @@ function loop() {
 requestAnimationFrame(loop);
 
 cvs.addEventListener('click', (e) => {
+  initAudio();
   const rect = cvs.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
   for (let i = pins.length - 1; i >= 0; i--) {
