@@ -283,7 +283,6 @@ EMOTIONS.forEach((e, i) => {
   b.className = 'chip' + (i === 0 ? ' active' : '');
   b.innerHTML = '<span class="dot" style="background:' + e.color + '"></span>' + e.name;
   b.onclick = () => {
-    // Only select the emotion; do NOT paint the road until Paint Road or Add is clicked
     document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
     curEmo = e;
@@ -325,9 +324,14 @@ socket.on('emotion_painted', (d) => {
 });
 
 socket.on('memory_added', (d) => {
-  memories.push(d.memory); if (memories.length > 120) memories.shift();
-  bands.push(d.band); if (bands.length > 180) bands.shift();
-  counts = d.counts; drawSpectrum();
+  // Show message popup above the glowing orb head for 3 seconds (3000ms)
+  const memWithPopup = { ...d.memory, popUntil: Date.now() + 3000 };
+  memories.push(memWithPopup);
+  if (memories.length > 120) memories.shift();
+  bands.push(d.band);
+  if (bands.length > 180) bands.shift();
+  counts = d.counts;
+  drawSpectrum();
 });
 
 socket.on('room_reset', (s) => {
@@ -340,12 +344,10 @@ socket.on('reset_error', (m) => {
   el.textContent = m; el.style.display = 'block';
 });
 
-// Paint Road ONLY when Paint Road button is clicked
 paintBtn.onclick = () => {
   socket.emit('paint_emotion', { emotion: curEmo.name, color: curEmo.color });
 };
 
-// Or when a comment/memory is submitted via Add
 function sendMem() {
   const inp = document.getElementById('memInput');
   const txt = inp.value.trim();
@@ -464,6 +466,84 @@ function drawTree(x, y, s, sh) {
   }
 }
 
+// Helper to draw 3-second floating speech bubble above the orb head
+function drawOrbPopup(x, y, r, m, remainingMs) {
+  ctx.save();
+  // Smooth fade out during the last 500ms
+  const alpha = remainingMs < 500 ? Math.max(0, remainingMs / 500) : 1;
+  ctx.globalAlpha = alpha;
+
+  ctx.font = '600 13px system-ui, -apple-system, sans-serif';
+  const maxLineW = 210;
+  const words = String(m.text || '').split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
+    if (ctx.measureText(testLine).width > maxLineW && currentLine) {
+      lines.push(currentLine);
+      currentLine = words[i];
+      if (lines.length === 2) {
+        currentLine += '...';
+        break;
+      }
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine && lines.length < 3) lines.push(currentLine);
+
+  let textW = 60;
+  lines.forEach(l => {
+    const lw = ctx.measureText(l).width;
+    if (lw > textW) textW = lw;
+  });
+
+  const padX = 12, padY = 8, lineH = 17;
+  const boxW = Math.min(240, textW + padX * 2);
+  const boxH = lines.length * lineH + padY * 2;
+
+  // Keep popup clamped inside screen edges horizontally
+  const bx = Math.max(10, Math.min(innerWidth - boxW - 10, x - boxW / 2));
+  const by = y - r * 1.4 - boxH - 10;
+
+  // Speech bubble background + pointer triangle pointing down to orb head
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+  ctx.strokeStyle = m.color || '#38bdf8';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(bx, by, boxW, boxH, 10);
+  } else {
+    ctx.rect(bx, by, boxW, boxH);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  // Pointer tip right above orb
+  const tipX = Math.max(bx + 12, Math.min(bx + boxW - 12, x));
+  ctx.beginPath();
+  ctx.moveTo(tipX - 6, by + boxH);
+  ctx.lineTo(tipX + 6, by + boxH);
+  ctx.lineTo(x, by + boxH + 8);
+  ctx.closePath();
+  ctx.fillStyle = m.color || '#38bdf8';
+  ctx.fill();
+
+  // Render message text inside bubble
+  ctx.fillStyle = '#f8fafc';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  lines.forEach((line, idx) => {
+    const ly = by + padY + idx * lineH + lineH / 2;
+    ctx.fillText(line, bx + boxW / 2, ly);
+  });
+
+  ctx.restore();
+}
+
 function loop() {
   const w = innerWidth, h = innerHeight, hy = h * 0.42, vx = w * 0.5;
   scroll = (scroll + 0.002) % 1;
@@ -516,6 +596,9 @@ function loop() {
   });
 
   pins = [];
+  const now = Date.now();
+  const activePopups = [];
+
   memories.forEach((m, i) => {
     const bz = m.zPos || ((i * 0.17) % 0.85 + 0.1), p = Math.pow(bz, 1.45);
     const y = hy + p * (h - hy - 95), rw = rwTop + p * (rwBot - rwTop);
@@ -525,6 +608,15 @@ function loop() {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, Math.PI * 2); ctx.fill();
     pins.push({ x, y, r: r * 2.2, m });
+
+    if (m.popUntil && now < m.popUntil) {
+      activePopups.push({ x, y, r, m, remaining: m.popUntil - now });
+    }
+  });
+
+  // Draw 3-second floating bubbles on top of all orbs so text is never obscured
+  activePopups.forEach(pop => {
+    drawOrbPopup(pop.x, pop.y, pop.r, pop.m, pop.remaining);
   });
 
   requestAnimationFrame(loop);
