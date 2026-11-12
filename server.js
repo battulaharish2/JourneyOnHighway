@@ -148,7 +148,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   .title { font-weight:700; font-size:14px; }
   .pill { font-size:12px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.4); padding:3px 9px; border-radius:99px; cursor:pointer; }
   .live { font-size:12px; color:#34d399; background:rgba(16,185,129,0.15); padding:3px 9px; border-radius:99px; font-weight:600; }
-  .btn { background:rgba(255,255,255,0.08); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:7px 11px; font-size:12.5px; font-weight:600; cursor:pointer; }
+  .btn { background:rgba(255,255,255,0.08); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:7px 11px; font-size:12.5px; font-weight:600; cursor:pointer; transition:0.15s; }
   .btn-primary { background:#3b82f6; border-color:#60a5fa; color:#fff; }
   .btn-danger { background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.5); color:#fca5a5; }
   .spectrum-wrap { position:fixed; top:66px; left:16px; right:16px; z-index:9; pointer-events:none; display:flex; justify-content:center; }
@@ -196,7 +196,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 <div class="dock">
   <div class="emos" id="emosRow"></div>
   <div class="inputs">
-    <button class="btn" id="paintBtn">Paint Road</button>
+    <button class="btn" id="paintBtn" style="border-color:#facc15;">Paint Road</button>
     <input type="text" id="memInput" maxlength="240" placeholder="Write an anonymous memory and tap Add..." />
     <button class="btn btn-primary" id="addBtn">Add</button>
   </div>
@@ -276,15 +276,18 @@ let bands = [], memories = [], counts = {}, pins = [], scroll = 0;
 function closeM(id) { document.getElementById(id).classList.remove('open'); }
 
 const emosRow = document.getElementById('emosRow');
+const paintBtn = document.getElementById('paintBtn');
+
 EMOTIONS.forEach((e, i) => {
   const b = document.createElement('button');
   b.className = 'chip' + (i === 0 ? ' active' : '');
   b.innerHTML = '<span class="dot" style="background:' + e.color + '"></span>' + e.name;
   b.onclick = () => {
+    // Only select the emotion; do NOT paint the road until Paint Road or Add is clicked
     document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
     curEmo = e;
-    socket.emit('paint_emotion', { emotion: e.name, color: e.color });
+    paintBtn.style.borderColor = e.color;
   };
   emosRow.appendChild(b);
 });
@@ -337,10 +340,12 @@ socket.on('reset_error', (m) => {
   el.textContent = m; el.style.display = 'block';
 });
 
-document.getElementById('paintBtn').onclick = () => {
+// Paint Road ONLY when Paint Road button is clicked
+paintBtn.onclick = () => {
   socket.emit('paint_emotion', { emotion: curEmo.name, color: curEmo.color });
 };
 
+// Or when a comment/memory is submitted via Add
 function sendMem() {
   const inp = document.getElementById('memInput');
   const txt = inp.value.trim();
